@@ -44,6 +44,7 @@ YouTubeには「高評価」「低評価」「後で見る」などの機能は�
 > 詳しくは：[この解説記事](https://note.com/cachu_don/n/n976502e18345)を参考
 
 取得できる情報：
+
 - `title`（動画タイトル）
 - `subtitles`（チャンネル名）
 - `time`（視聴時刻）
@@ -144,5 +145,4 @@ MIT
 - Flutter / Dart
 - Gemini API (LLM-based recommendation)
 - JSON構造の理解には [cachu_donさんの記事](https://note.com/cachu_don/n/n976502e18345) を参考
-
-
+  
