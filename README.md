@@ -1,16 +1,148 @@
-# music_recommend_app
+# 🎵 MyMusicLog – YouTube視聴履歴から音楽を記録・再発見するアプリ
 
-A new Flutter project.
+## 📌 概要
 
-## Getting Started
+**「もう一度聴きたい音楽に、二度と出会えない」そんな体験をなくすために。**
 
-This project is a starting point for a Flutter application.
+YouTubeの視聴履歴から自分が再生した音楽を自動で保存し、月別に振り返ったり、評価をつけたり、おすすめリストをAIに生成してもらったりできるFlutter製アプリです。
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🧠 背景・課題
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+YouTubeには「高評価」「低評価」「後で見る」などの機能はありますが、ちょっと気に入った音楽すべてをいちいち保存するのは面倒です。また履歴からも消えてしまうと、もう一度見つけるのはほぼ不可能です。
+
+---
+
+## ✅ 解決方法
+
+- YouTubeの視聴履歴（Google Takeoutから取得）を月別に保存
+- 1曲ずつ5段階で評価をつけて管理
+- 再生回数や評価をもとに、おすすめ音楽リストを生成（Gemini API活用）
+- 音楽の好みの変化も月単位で可視化
+
+---
+
+## 🛠 使用技術
+
+| 分野 | 技術 |
+|------|------|
+| アプリ開発 | Flutter |
+| AI推薦 | Gemini API |
+| データベース | SQFLite（※Web対応なし） |
+| データ入力 | Google Takeout による JSON インポート |
+
+---
+
+## 📥 視聴履歴の取得方法
+
+1. [Google Takeout](https://takeout.google.com/?pli=1) にアクセス
+2. 「YouTube と YouTube Music」の「視聴履歴」にチェック
+3. JSON形式でエクスポート
+4. アプリ内の「データ追加」画面でファイルを読み込む
+
+> 詳しくは：[この解説記事](https://note.com/cachu_don/n/n976502e18345)を参考
+
+取得できる情報：
+- `title`（動画タイトル）
+- `subtitles`（チャンネル名）
+- `time`（視聴時刻）
+- `titleUrl`（動画URL）
+
+---
+
+## 🎶 音楽判定ロジック
+
+視聴履歴から「音楽動画」を自動判定するために、以下の2つの方法を組み合わせています：
+
+1. **チャンネル名のフィルタ**（`music`, `official`, `records` などを含む）
+2. **タイトルにMV, Lyric Video, 歌ってみたなどが含まれるかチェック**
+
+判定が難しいものは、ユーザーが手動で「音楽として登録」できるUIを用意。
+
+---
+
+## 💡 機能一覧
+
+- [x] Google TakeoutからJSONインポート
+- [x] 視聴履歴をローカルDBに保存
+- [x] 音楽のみ抽出して一覧表示
+- [x] 月別に履歴をグループ化して表示
+- [x] 評価・再生回数の記録
+- [x] Gemini APIでおすすめ音楽リストの生成
+- [ ] 曲単体から似た音楽をAIで検索（予定）
+
+---
+
+## 🖼 画面構成
+
+| 画面名 | 説明 |
+|--------|------|
+| ホーム | データ追加 or おすすめ/履歴の入口 |
+| データ追加 | JSONのアップロードと説明 |
+| 履歴まとめ | 月別に再生履歴・おすすめを一覧表示 |
+| 履歴画面 | 評価編集・再生回数確認・履歴の詳細確認 |
+| おすすめ画面 | 評価の高い音楽からAIが推薦する音楽リストを表示 |
+
+---
+
+## 🗃 データベース設計
+
+### `watch_history` テーブル
+
+| 列名 | 説明 |
+|------|------|
+| id | 主キー |
+| user_id | ユーザーID（今は固定） |
+| title | 動画タイトル |
+| views | 再生回数 |
+| evaluation | 評価（1〜5） |
+| datetime | 視聴日時（ISO8601） |
+| url | 動画URL |
+
+### `recommendation` テーブル
+
+| 列名 | 説明 |
+|------|------|
+| id | 主キー |
+| user_id | ユーザーID |
+| parent_id | おすすめ元の履歴ID |
+| title | 推薦された動画タイトル |
+| description | 推薦理由や説明 |
+| url | 推薦された動画URL |
+| datetime | 推薦生成日 |
+
+---
+
+## 🔄 画面遷移図
+
+ホーム画面
+├─→ データ追加画面
+└─→ おすすめ・履歴まとめ画面
+├─→ 履歴画面
+└─→ おすすめ画面
+履歴画面・おすすめ画面 → ホーム画面
+
+---
+
+## ✨ 今後の発展案
+
+- Geminiを使った「似ている曲」レコメンド機能（曲単体から）
+- 月別の再生回数グラフやジャンル別可視化
+- Web対応（別DBに切り替え or Supabase等への移行）
+
+---
+
+## 📄 ライセンス
+
+MIT
+
+---
+
+## 🙌 開発・設計
+
+- Flutter / Dart
+- Gemini API (LLM-based recommendation)
+- JSON構造の理解には [cachu_donさんの記事](https://note.com/cachu_don/n/n976502e18345) を参考
+
+
