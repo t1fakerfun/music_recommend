@@ -30,7 +30,8 @@ class DatabaseHelper {
         title TEXT,
         description TEXT,
         url TEXT,
-        watchedAt TEXT
+        watchedAt TEXT,
+        monthYear TEXT
       )
     ''');
     await db.execute('''
@@ -43,13 +44,15 @@ class DatabaseHelper {
     ''');
     await db.execute('''
       CREATE TABLE watch_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER,
-        id INTEGER PRIMARY KEY,
         title TEXT,
         views INTEGER,
         evaluation INTEGER,
         url TEXT,
         watchedAt TEXT,
+        monthYear TEXT,
+        channel TEXT
       )
     ''');
   }

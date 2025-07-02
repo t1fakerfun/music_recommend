@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'screens/result_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/add_json_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -11,10 +14,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Music Recommendation App',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: Scaffold(
-        appBar: AppBar(title: Text('Music Recommendation Home')),
-        body: Center(child: Text('Welcome to the Music Recommendation App!')),
-      ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => HomeScreen(),
+        '/result': (context) => ResultScreen(),
+        '/add': (context) => AddJsonScreen(),
+      },
     );
   }
 }
