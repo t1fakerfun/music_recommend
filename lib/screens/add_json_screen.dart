@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import '../db/database_helper.dart';
 import '../utils/utils.dart';
 import '../db/watch_history.dart';
+import '../db/jsons.dart';
 //jsonを読み込むスクリーン
 
 //jsonをとってくる
@@ -32,11 +33,17 @@ List<MusicEntry> extractMusicEntries(List<dynamic> jsonData) {
         final url = entry['titleUrl'] ?? '';
         return header == "YouTube Music" || url.contains("music.youtube.com");
       })
-      //ここにフィルタリングを追加する(現在はYoutube Musicのヘッダーがあるものと、URLにmusic.youtube.comが含まれるものを抽出)
       .map((entry) {
-        final title = (entry['title'] as String).replaceAll(" を視聴しました", "");
+        // タイトルの文字化け修正
+        String title = (entry['title'] as String).replaceAll(" を視聴しました", "");
+        title = _fixGarbledText(title);
+
         final url = entry['titleUrl'] ?? '';
-        final channel = entry['subtitles']?[0]?['name'] ?? '不明';
+
+        // チャンネル名の文字化け修正
+        String channel = entry['subtitles']?[0]?['name'] ?? '不明';
+        channel = _fixGarbledText(channel);
+
         final watchedAt = DateTime.parse(entry['time']);
         return MusicEntry(
           title: title,
@@ -46,6 +53,26 @@ List<MusicEntry> extractMusicEntries(List<dynamic> jsonData) {
         );
       })
       .toList();
+}
+
+// 文字化け修正用のヘルパー関数（簡易版）
+String _fixGarbledText(String text) {
+  // 基本的な文字化けパターンを修正
+  String fixed = text;
+
+  // よくある文字化けパターン
+  final patterns = [
+    ['â€œ', '"'],
+    ['â€', '"'],
+    ['â€™', "'"],
+    ['â€¦', '...'],
+  ];
+
+  for (final pattern in patterns) {
+    fixed = fixed.replaceAll(pattern[0], pattern[1]);
+  }
+
+  return fixed;
 }
 
 class AddJsonScreen extends StatefulWidget {
@@ -80,7 +107,30 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
       );
 
       if (file != null) {
-        final contents = await file.readAsString();
+        // ファイル内容をバイト列として読み込み
+        final bytes = await file.readAsBytes();
+        String contents;
+
+        try {
+          // まずUTF-8として試行
+          contents = utf8.decode(bytes);
+        } catch (e) {
+          try {
+            // UTF-8で失敗した場合、latin1（ISO-8859-1）で読み込んでからUTF-8に変換
+            contents = utf8.decode(latin1.encode(latin1.decode(bytes)));
+          } catch (e2) {
+            // それでも失敗した場合、エラーを無視してUTF-8で強制デコード
+            contents = utf8.decode(bytes, allowMalformed: true);
+          }
+        }
+
+        // BOM（Byte Order Mark）を除去
+        if (contents.startsWith('\uFEFF')) {
+          contents = contents.substring(1);
+        }
+
+        // ファイル情報をjsonsテーブルに保存
+        await _saveJsonFileInfo(file, contents);
         await _processJsonData(contents);
       } else {
         // ファイル選択がキャンセルされた場合
@@ -213,6 +263,37 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _saveJsonFileInfo(XFile file, String contents) async {
+    try {
+      final db = await DatabaseHelper().database;
+      final jsonsRepository = JsonsRepository(db);
+
+      // ファイルサイズを取得
+      final fileSize = await file.length();
+
+      // JSONエントリ数を取得
+      final jsonData = jsonDecode(contents);
+      final entries = extractMusicEntries(jsonData);
+
+      // jsonsテーブルに保存
+      await jsonsRepository.insertJson(
+        Jsons(
+          userId: await getOrCreateUserId(),
+          filename: file.name,
+          filesize: fileSize,
+          entriesCount: entries.length,
+          addDate: DateTime.now(),
+        ),
+      );
+
+      print(
+        'JSONファイル情報を保存: ${file.name}, サイズ: $fileSize, エントリ数: ${entries.length}',
+      );
+    } catch (e) {
+      print('JSONファイル情報の保存に失敗: $e');
     }
   }
 

@@ -55,5 +55,15 @@ class DatabaseHelper {
         channel TEXT
       )
     ''');
+    await db.execute('''
+      CREATE TABLE jsons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        filename TEXT,
+        filesize INTEGER,
+        entriesCount INTEGER,
+        addDate TEXT
+      )
+    ''');
   }
 }

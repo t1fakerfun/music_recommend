@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/utils.dart';
 import '../db/watch_history.dart';
 import '../db/database_helper.dart';
+import '../screens/watch_history_screen.dart';
+import '../screens/imported_jsons_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   @override
@@ -74,6 +76,12 @@ class _ResultScreenState extends State<ResultScreen> {
                     onPressed: () => Navigator.pushNamed(context, '/add'),
                     child: Text('JSONファイルを追加'),
                   ),
+                  SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/imported_jsons'),
+                    child: Text('インポート済みJSON'),
+                  ),
                   SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -106,12 +114,33 @@ class _ResultScreenState extends State<ResultScreen> {
                             onTap: () {
                               print('ResultScreen: 月詳細タップ - $month');
                               // 月別詳細画面に遷移（後で実装）
-                              _showMonthDetail(month);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      WatchHistoryScreen(monthYear: month),
+                                ),
+                              );
                             },
                           ),
                         );
                       },
                     ),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.pushNamed(context, '/add'),
+                        child: Text('JSONファイル追加'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/imported_jsons'),
+                        child: Text('インポート済みJSON'),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 20),
                   Center(
