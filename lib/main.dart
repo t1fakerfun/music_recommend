@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/result_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/add_json_screen.dart';
+import 'screens/imported_jsons_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => HomeScreen(),
         '/result': (context) => ResultScreen(),
         '/add': (context) => AddJsonScreen(),
+        '/imported_jsons': (context) => ImportedJsonsScreen(),
       },
     );
   }

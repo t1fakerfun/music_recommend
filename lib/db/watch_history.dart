@@ -157,4 +157,22 @@ class WatchHistoryRepository {
       whereArgs: [userId, id],
     );
   }
+
+  // 視聴履歴を更新する
+  Future<void> updateWatchHistory(WatchHistory watchHistory) async {
+    await database.update(
+      'watch_history',
+      {
+        'title': watchHistory.title,
+        'views': watchHistory.views,
+        'evaluation': watchHistory.evaluation,
+        'url': watchHistory.url,
+        'watchedAt': watchHistory.watchedAt?.toIso8601String(),
+        'monthYear': watchHistory.monthYear,
+        'channel': watchHistory.channel,
+      },
+      where: 'id = ? AND userId = ?',
+      whereArgs: [watchHistory.id, watchHistory.userId],
+    );
+  }
 }

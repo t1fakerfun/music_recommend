@@ -3,7 +3,6 @@ import '../utils/utils.dart';
 import '../db/watch_history.dart';
 import '../db/database_helper.dart';
 import '../screens/watch_history_screen.dart';
-import '../screens/imported_jsons_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   @override
@@ -152,36 +151,6 @@ class _ResultScreenState extends State<ResultScreen> {
                 ],
               ),
             ),
-    );
-  }
-
-  void _showMonthDetail(String monthYear) {
-    print('ResultScreen: 月詳細表示 - $monthYear');
-    // 月別詳細を表示するダイアログやボトムシートを表示
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        height: 300,
-        padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              '$monthYear の音楽履歴',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Text('※詳細画面は後で実装予定'),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                print('ResultScreen: 月詳細ダイアログ閉じる');
-                Navigator.pop(context);
-              },
-              child: Text('閉じる'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
