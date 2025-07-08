@@ -18,7 +18,12 @@ class DatabaseHelper {
   Future<Database> _initDB(String fileName) async {
     String dbpath = await getDatabasesPath();
     String path = join(dbpath, fileName);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -28,6 +33,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY,
         parentId INTEGER,
         title TEXT,
+        artist TEXT,
         description TEXT,
         url TEXT,
         watchedAt TEXT,
@@ -65,5 +71,12 @@ class DatabaseHelper {
         addDate TEXT
       )
     ''');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // artistカラムをrecommendationsテーブルに追加
+      await db.execute('ALTER TABLE recommendations ADD COLUMN artist TEXT');
+    }
   }
 }

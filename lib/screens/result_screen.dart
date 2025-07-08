@@ -3,6 +3,7 @@ import '../utils/utils.dart';
 import '../db/watch_history.dart';
 import '../db/database_helper.dart';
 import '../screens/watch_history_screen.dart';
+import '../screens/recommend_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   @override
@@ -105,22 +106,62 @@ class _ResultScreenState extends State<ResultScreen> {
                       itemBuilder: (context, index) {
                         final month = availableMonths[index];
                         return Card(
-                          child: ListTile(
-                            leading: Icon(Icons.calendar_month),
-                            title: Text('$month'),
-                            subtitle: Text('この月の音楽履歴を確認'),
-                            trailing: Icon(Icons.arrow_forward_ios),
-                            onTap: () {
-                              print('ResultScreen: 月詳細タップ - $month');
-                              // 月別詳細画面に遷移（後で実装）
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      WatchHistoryScreen(monthYear: month),
-                                ),
-                              );
-                            },
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: Icon(Icons.calendar_month),
+                                title: Text('$month'),
+                                subtitle: Text('この月の音楽データ'),
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Expanded(
+                                    child: TextButton.icon(
+                                      icon: Icon(Icons.history),
+                                      label: Text('視聴履歴'),
+                                      onPressed: () {
+                                        print('ResultScreen: 視聴履歴タップ - $month');
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                WatchHistoryScreen(
+                                                  monthYear: month,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Container(
+                                    height: 40,
+                                    width: 1,
+                                    color: Colors.grey[300],
+                                  ),
+                                  Expanded(
+                                    child: TextButton.icon(
+                                      icon: Icon(Icons.recommend),
+                                      label: Text('AI推薦'),
+                                      onPressed: () {
+                                        print('ResultScreen: AI推薦タップ - $month');
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                RecommendScreen(
+                                                  monthYear: month,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                            ],
                           ),
                         );
                       },

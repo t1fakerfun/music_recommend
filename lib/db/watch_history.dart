@@ -1,4 +1,7 @@
 import 'package:sqflite/sqflite.dart';
+import '../db/database_helper.dart';
+import '../db/recommendation.dart';
+import '../AI/gen_recommend.dart';
 
 class WatchHistory {
   final int userId;
@@ -174,5 +177,19 @@ class WatchHistoryRepository {
       where: 'id = ? AND userId = ?',
       whereArgs: [watchHistory.id, watchHistory.userId],
     );
+  }
+
+  Future<bool> generaterecommend(WatchHistory watchHistory) async {
+    try {
+      // gen_recommend関数を呼び出して、視聴履歴から推奨を生成
+      final recommendation = await genRecommendBysongTitle(watchHistory);
+      final recommendationRepository = RecommendationRepository(database);
+      await recommendationRepository.insertRecommendation(recommendation);
+      print('成功: 推奨を生成しました: ${recommendation.title}');
+      return true;
+    } catch (e) {
+      print('Error generating recommendation: $e');
+      return false;
+    }
   }
 }
