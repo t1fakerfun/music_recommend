@@ -109,7 +109,6 @@ class _ResultScreenState extends State<ResultScreen> {
                           child: Column(
                             children: [
                               ListTile(
-                                leading: Icon(Icons.calendar_month),
                                 title: Text('$month'),
                                 subtitle: Text('この月の音楽データ'),
                               ),
@@ -119,7 +118,6 @@ class _ResultScreenState extends State<ResultScreen> {
                                 children: [
                                   Expanded(
                                     child: TextButton.icon(
-                                      icon: Icon(Icons.history),
                                       label: Text('視聴履歴'),
                                       onPressed: () {
                                         print('ResultScreen: 視聴履歴タップ - $month');
@@ -142,7 +140,6 @@ class _ResultScreenState extends State<ResultScreen> {
                                   ),
                                   Expanded(
                                     child: TextButton.icon(
-                                      icon: Icon(Icons.recommend),
                                       label: Text('AI推薦'),
                                       onPressed: () {
                                         print('ResultScreen: AI推薦タップ - $month');

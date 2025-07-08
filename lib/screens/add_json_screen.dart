@@ -320,9 +320,18 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
               ),
               SizedBox(height: 20),
               Text(
-                'Google TakeoutからエクスポートしたJSONファイルを読み込みます',
+                'Google TakeoutからJSONをダウンロードしアップロードしてください。',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 20),
+              Container(
+                width: 450,
+                height: 350,
+                child: Image.asset(
+                  'assets/images/how_use.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               SizedBox(height: 40),
               if (_isLoading)
