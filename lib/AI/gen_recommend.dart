@@ -46,16 +46,15 @@ Future<Recommendation> genRecommendBysongTitle(
 {
   "title": "おすすめの曲タイトル",
   "artist": "アーティスト名",
-  "description": "この曲をおすすめする理由（100文字以内）",
-  "url": "https://music.youtube.com/watch?v=EXAMPLE"
+  "description": "この曲をおすすめする理由（100文字以内）"
 }
 
 注意事項:
 - 実在する楽曲を推奨してください
 - アーティスト名は正確に記載してください
-- URLは YouTube Music の形式で記載してください
 - 説明は簡潔で魅力的にしてください
 - JSON形式を厳密に守ってください
+- URLは含めないでください（自動生成します）
     '''),
     ];
 
@@ -91,6 +90,21 @@ Future<Recommendation> genRecommendBysongTitle(
   }
 }
 
+// YouTube Music検索URLを生成する関数
+String _generateYouTubeMusicSearchUrl(String title, String artist) {
+  // 曲名とアーティスト名を組み合わせて検索クエリを作成
+  final query = '$artist $title';
+  
+  // 特殊文字や空白を適切にエンコード
+  final encodedQuery = Uri.encodeQueryComponent(query);
+  
+  print('検索クエリ: $query');
+  print('エンコード後: $encodedQuery');
+  
+  // YouTube Music検索URL
+  return 'https://music.youtube.com/search?q=$encodedQuery';
+}
+
 // AIレスポンスを解析してRecommendationオブジェクトを作成
 Recommendation _parseAIResponse(
   String responseText,
@@ -108,15 +122,25 @@ Recommendation _parseAIResponse(
     }
 
     final jsonString = responseText.substring(jsonStart, jsonEnd);
+    print('抽出されたJSON: $jsonString');
+
     final Map<String, dynamic> jsonData = json.decode(jsonString);
+
+    final title = jsonData['title'] ?? 'おすすめの曲';
+    final artist = jsonData['artist'] ?? '不明なアーティスト';
+
+    // 検索URLを生成
+    final searchUrl = _generateYouTubeMusicSearchUrl(title, artist);
+
+    print('生成された検索URL: $searchUrl');
 
     return Recommendation(
       userId: userId,
       parentId: parentId,
-      title: jsonData['title'] ?? 'おすすめの曲',
-      artist: jsonData['artist'] ?? '不明なアーティスト',
+      title: title,
+      artist: artist,
       description: jsonData['description'] ?? 'AIが推奨する楽曲です',
-      url: jsonData['url'] ?? 'https://music.youtube.com/',
+      url: searchUrl,
       monthYear: monthYear,
       watchedAt: DateTime.now(),
     );

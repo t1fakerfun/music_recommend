@@ -94,4 +94,29 @@ class RecommendationRepository {
       );
     });
   }
+
+  Future<void> deleteRecommendation(int? id) async {
+    await database.delete('recommendations', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // 月別の推薦を全て削除
+  Future<void> deleteRecommendationsByMonth(
+    int userId,
+    String monthYear,
+  ) async {
+    await database.delete(
+      'recommendations',
+      where: 'userId = ? AND monthYear = ?',
+      whereArgs: [userId, monthYear],
+    );
+  }
+
+  // 特定のparentIdの推薦を削除
+  Future<void> deleteRecommendationsByParent(int parentId) async {
+    await database.delete(
+      'recommendations',
+      where: 'parentId = ?',
+      whereArgs: [parentId],
+    );
+  }
 }

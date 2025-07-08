@@ -123,23 +123,233 @@ class _RecommendScreenState extends State<RecommendScreen> {
     }
   }
 
-  // URLを開く
+  // 推薦を削除する関数を追加
+  Future<void> _deleteRecommendation(Recommendation recommendation) async {
+    // 確認ダイアログを表示
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('推薦を削除'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('以下の推薦を削除しますか？'),
+            SizedBox(height: 8),
+            Text(
+              '♪ ${recommendation.title}',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'by ${recommendation.artist}',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('削除', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      try {
+        // データベースから削除
+        await recommendationRepository.deleteRecommendation(recommendation.id!);
+
+        // リストを更新
+        await _initializeData();
+
+        // 成功メッセージ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('「${recommendation.title}」を削除しました'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // エラーメッセージ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('削除に失敗しました: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // URLを開く（詳細デバッグ版）
   Future<void> _launchURL(String url) async {
     try {
+      print('=== URL起動デバッグ開始 ===');
+      print('起動しようとするURL: $url');
+      
       final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('URLを開けませんでした: $url')));
-      }
+      print('パース後のURI: $uri');
+      print('URI scheme: ${uri.scheme}');
+      print('URI host: ${uri.host}');
+      print('URI query: ${uri.query}');
+      
+      // canLaunchUrlをチェック
+      final canLaunch = await canLaunchUrl(uri);
+      print('canLaunchUrl結果: $canLaunch');
     } catch (e) {
-      print('URL起動エラー: $e');
+      print('❌ URL起動エラー: $e');
+      print('エラータイプ: ${e.runtimeType}');
+      
+      // ブラウザで開くことを提案
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('アプリでURLを開けませんでした。ブラウザでお試しください。'),
+          action: SnackBarAction(
+            label: 'コピー',
+            onPressed: () {
+              // クリップボードにURLをコピー（オプション）
+              print('URLをクリップボードにコピー: $url');
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  // 一括削除機能を追加
+  Future<void> _clearAllRecommendations() async {
+    if (recommendations.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('URLの起動に失敗しました: $e')));
+      ).showSnackBar(SnackBar(content: Text('削除する推薦がありません')));
+      return;
     }
+
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('全ての推薦を削除'),
+        content: Text(
+          '${widget.monthYear}の全ての推薦（${recommendations.length}件）を削除しますか？\n\nこの操作は取り消せません。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('全て削除', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldClear == true) {
+      try {
+        // 全ての推薦を削除
+        for (final recommendation in recommendations) {
+          if (recommendation.id != null) {
+            await recommendationRepository.deleteRecommendation(
+              recommendation.id!,
+            );
+          }
+        }
+
+        // リストを更新
+        await _initializeData();
+
+        // 成功メッセージ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('全ての推薦を削除しました'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // エラーメッセージ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('削除に失敗しました: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // 複数の音楽サービスで開く機能を修正
+  Future<void> _showMusicServiceOptions(Recommendation recommendation) async {
+    final title = recommendation.title;
+    final artist = recommendation.artist;
+    
+    // Uri.encodeQueryComponent を使用して正しくエンコード
+    final query = Uri.encodeQueryComponent('$artist $title');
+    
+    print('検索対象: $artist $title');
+    print('エンコード後: $query');
+
+    final services = [
+      {
+        'name': 'YouTube Music',
+        'url': 'https://music.youtube.com/search?q=$query',
+        'icon': Icons.music_note,
+        'color': Colors.red,
+      },
+      {
+        'name': 'Spotify',
+        'url': 'https://open.spotify.com/search/$query',
+        'icon': Icons.audiotrack,
+        'color': Colors.green,
+      },
+      {
+        'name': 'Apple Music',
+        'url': 'https://music.apple.com/search?term=$query',
+        'icon': Icons.music_video,
+        'color': Colors.black,
+      },
+      {
+        'name': 'Google検索',
+        'url': 'https://www.google.com/search?q=$query',
+        'icon': Icons.search,
+        'color': Colors.blue,
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '「$title」を検索',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'by $artist',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            SizedBox(height: 16),
+            ...services.map(
+              (service) => ListTile(
+                leading: Icon(
+                  service['icon'] as IconData,
+                  color: service['color'] as Color,
+                ),
+                title: Text(service['name'] as String),
+                onTap: () {
+                  Navigator.pop(context);
+                  _launchURL(service['url'] as String);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -153,6 +363,25 @@ class _RecommendScreenState extends State<RecommendScreen> {
             onPressed: _initializeData,
             tooltip: '更新',
           ),
+          if (recommendations.isNotEmpty)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'clear_all') {
+                  _clearAllRecommendations();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'clear_all',
+                  child: Row(
+                    children: [
+                      SizedBox(width: 8),
+                      Text('全て削除'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
       body: isLoading
@@ -214,13 +443,6 @@ class _RecommendScreenState extends State<RecommendScreen> {
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: isGenerating ? null : _generateRecommendations,
-        icon: isGenerating
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(Icons.auto_awesome),
         label: Text(isGenerating ? 'AI推薦生成中...' : 'AIに新しい推薦を生成してもらう'),
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.symmetric(vertical: 12),
@@ -252,6 +474,7 @@ class _RecommendScreenState extends State<RecommendScreen> {
     );
   }
 
+  // 推薦リストのUI修正
   Widget _buildRecommendationList() {
     return ListView.builder(
       padding: EdgeInsets.all(16),
@@ -260,68 +483,26 @@ class _RecommendScreenState extends State<RecommendScreen> {
         final recommendation = recommendations[index];
         return Card(
           margin: EdgeInsets.only(bottom: 12),
-          elevation: 3,
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
+          child: ListTile(
+            title: Text(
+              recommendation.title,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.purple.shade100,
-                      child: Icon(Icons.music_note, color: Colors.purple),
-                      radius: 24,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            recommendation.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            recommendation.artist,
-                            style: TextStyle(
-                              color: Colors.blue.shade600,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.open_in_new, color: Colors.purple),
-                      onPressed: () => _launchURL(recommendation.url),
-                      tooltip: 'YouTube Musicで開く',
-                    ),
-                  ],
+                SizedBox(height: 4),
+                Text(
+                  'by ${recommendation.artist}',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                SizedBox(height: 12),
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Text(
-                    recommendation.description,
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
+                SizedBox(height: 4),
+                Text(
+                  recommendation.description,
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
                 SizedBox(height: 8),
                 Row(
@@ -332,19 +513,42 @@ class _RecommendScreenState extends State<RecommendScreen> {
                       'AI推薦',
                       style: TextStyle(color: Colors.purple, fontSize: 12),
                     ),
-                    Spacer(),
-                    TextButton(
-                      onPressed: () => _launchURL(recommendation.url),
-                      child: Text('YouTube Musicで聴く'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.purple,
-                        textStyle: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
                   ],
                 ),
               ],
             ),
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'search') {
+                  _showMusicServiceOptions(recommendation);
+                } else if (value == 'delete') {
+                  _deleteRecommendation(recommendation);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'search',
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('音楽サービスで検索'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('削除'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            onTap: () => _showMusicServiceOptions(recommendation),
           ),
         );
       },
