@@ -60,9 +60,8 @@ class _RecommendScreenState extends State<RecommendScreen> {
         isLoading = false;
       });
     }
-  }
+  } // AIに新しい推薦を生成してもらう
 
-  // AIに新しい推薦を生成してもらう
   Future<void> _generateRecommendations() async {
     if (watchHistories.isEmpty) {
       ScaffoldMessenger.of(
@@ -82,8 +81,10 @@ class _RecommendScreenState extends State<RecommendScreen> {
           .toList();
 
       if (highRatedHistories.isEmpty) {
-        // 評価の高い曲がない場合は視聴回数の多い曲から選ぶ
-        watchHistories.sort((a, b) => b.views.compareTo(a.views));
+        // 評価の高い曲がない場合は月毎視聴回数の多い曲から選ぶ
+        watchHistories.sort(
+          (a, b) => (b.monthlyViews ?? 0).compareTo(a.monthlyViews ?? 0),
+        );
         highRatedHistories.addAll(watchHistories.take(3));
       }
 
@@ -189,20 +190,20 @@ class _RecommendScreenState extends State<RecommendScreen> {
     try {
       print('=== URL起動デバッグ開始 ===');
       print('起動しようとするURL: $url');
-      
+
       final Uri uri = Uri.parse(url);
       print('パース後のURI: $uri');
       print('URI scheme: ${uri.scheme}');
       print('URI host: ${uri.host}');
       print('URI query: ${uri.query}');
-      
+
       // canLaunchUrlをチェック
       final canLaunch = await canLaunchUrl(uri);
       print('canLaunchUrl結果: $canLaunch');
     } catch (e) {
       print('❌ URL起動エラー: $e');
       print('エラータイプ: ${e.runtimeType}');
-      
+
       // ブラウザで開くことを提案
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -283,10 +284,10 @@ class _RecommendScreenState extends State<RecommendScreen> {
   Future<void> _showMusicServiceOptions(Recommendation recommendation) async {
     final title = recommendation.title;
     final artist = recommendation.artist;
-    
+
     // Uri.encodeQueryComponent を使用して正しくエンコード
     final query = Uri.encodeQueryComponent('$artist $title');
-    
+
     print('検索対象: $artist $title');
     print('エンコード後: $query');
 
@@ -328,10 +329,7 @@ class _RecommendScreenState extends State<RecommendScreen> {
               '「$title」を検索',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Text(
-              'by $artist',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            Text('by $artist', style: TextStyle(color: Colors.grey.shade600)),
             SizedBox(height: 16),
             ...services.map(
               (service) => ListTile(
@@ -373,12 +371,7 @@ class _RecommendScreenState extends State<RecommendScreen> {
               itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'clear_all',
-                  child: Row(
-                    children: [
-                      SizedBox(width: 8),
-                      Text('全て削除'),
-                    ],
-                  ),
+                  child: Row(children: [SizedBox(width: 8), Text('全て削除')]),
                 ),
               ],
             ),
@@ -404,6 +397,11 @@ class _RecommendScreenState extends State<RecommendScreen> {
   }
 
   Widget _buildStatistics() {
+    // 月毎の視聴回数を計算
+    final monthlyTotalViews = watchHistories
+        .map((h) => h.monthlyViews ?? 0)
+        .fold(0, (sum, views) => sum + views);
+
     return Container(
       padding: EdgeInsets.all(16),
       margin: EdgeInsets.all(16),
@@ -411,14 +409,33 @@ class _RecommendScreenState extends State<RecommendScreen> {
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
         children: [
-          _buildStatItem('視聴履歴', '${watchHistories.length}曲'),
-          _buildStatItem('推薦数', '${recommendations.length}曲'),
-          _buildStatItem(
-            '高評価',
-            '${watchHistories.where((h) => h.evaluation >= 4).length}曲',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem('楽曲数', '${watchHistories.length}曲'),
+              _buildStatItem('推薦数', '${recommendations.length}曲'),
+              _buildStatItem(
+                '高評価',
+                '${watchHistories.where((h) => h.evaluation >= 4).length}曲',
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.play_circle_outline, color: Colors.blue),
+              SizedBox(width: 4),
+              Text(
+                'この月の視聴回数: $monthlyTotalViews回',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),

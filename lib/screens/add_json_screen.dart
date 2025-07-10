@@ -97,10 +97,16 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
     });
 
     try {
-      // JSONファイルを選択
+      // JSONファイルを選択（より汎用的な設定）
       const XTypeGroup typeGroup = XTypeGroup(
-        label: 'JSON files',
-        extensions: <String>['json'],
+        label: 'すべてのファイル',
+        extensions: <String>['json', 'txt'],
+        uniformTypeIdentifiers: <String>[
+          'public.json',
+          'public.plain-text',
+          'public.text',
+          'public.data',
+        ],
       );
       final XFile? file = await openFile(
         acceptedTypeGroups: <XTypeGroup>[typeGroup],
@@ -213,18 +219,22 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
         final watchHistoryRepository = WatchHistoryRepository(db);
         final watchHistory = WatchHistory(
           userId: await getOrCreateUserId(),
-          // idを指定しない（AUTOINCREMENTに任せる）
           title: entry.title,
-          views: 1, // 初回視聴なので1
+          totalViews: 1, // 初回視聴なので1
           evaluation: 0, // 評価は初期値0
           url: entry.url,
-          watchedAt: entry.watchedAt,
-          monthYear:
-              '${entry.watchedAt?.year}-${entry.watchedAt?.month.toString().padLeft(2, '0')}',
           channel: entry.channel,
+          // 新しいデータモデルでは、watchedDatesは不要
         );
-        await watchHistoryRepository.insertOrUpdate(watchHistory);
-        print('処理中: ${entry.title}'); // デバッグ用
+
+        print('処理中: ${entry.title} (サムネイルダウンロード含む)'); // デバッグ用
+
+        // 実際の視聴日時を使用してデータを挿入
+        final watchedDate = entry.watchedAt ?? DateTime.now();
+        await watchHistoryRepository.insertOrUpdateWithDate(
+          watchHistory,
+          watchedDate,
+        );
         _processedCount++;
       }
 
@@ -236,9 +246,12 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
     }
 
     // 処理完了
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('${entries.length}件の音楽を検出しました')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${entries.length}件の音楽を検出し、サムネイルもダウンロードしました'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   void _processTextInput() async {
@@ -343,6 +356,14 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
                       Column(
                         children: [
                           Text('処理中: $_processedCount / $_totalCount'),
+                          Text(
+                            'サムネイルダウンロード中...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
                           SizedBox(height: 8),
                           LinearProgressIndicator(
                             value: _totalCount > 0
@@ -353,7 +374,16 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
                         ],
                       )
                     else
-                      Text('ファイルを処理中...'),
+                      Column(
+                        children: [
+                          Text('ファイルを処理中...'),
+                          SizedBox(height: 4),
+                          Text(
+                            'サムネイルをダウンロードしています',
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ],
+                      ),
                     SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context),

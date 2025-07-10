@@ -20,7 +20,7 @@ class DatabaseHelper {
     String path = join(dbpath, fileName);
     return await openDatabase(
       path,
-      version: 2,
+      version: 4, // バージョンを4に更新
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -53,12 +53,13 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER,
         title TEXT,
-        views INTEGER,
+        totalViews INTEGER DEFAULT 0,
         evaluation INTEGER,
         url TEXT,
-        watchedAt TEXT,
-        monthYear TEXT,
-        channel TEXT
+        channel TEXT,
+        thumbnail BLOB,
+        createdAt TEXT,
+        updatedAt TEXT
       )
     ''');
     await db.execute('''
@@ -71,12 +72,47 @@ class DatabaseHelper {
         addDate TEXT
       )
     ''');
+    await db.execute('''
+      CREATE TABLE monthly_views(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        historyId INTEGER,
+        monthYear TEXT,
+        viewCount INTEGER DEFAULT 0,
+        lastWatchedAt TEXT,
+        FOREIGN KEY (historyId) REFERENCES watch_history (id)
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // artistカラムをrecommendationsテーブルに追加
-      await db.execute('ALTER TABLE recommendations ADD COLUMN artist TEXT');
+    if (oldVersion < 4) {
+      // バージョン4への移行：monthly_viewsテーブルの追加とwatch_historyテーブルの更新
+      try {
+        // 既存のwatch_historyテーブルに不足しているカラムを追加
+        await db.execute(
+          'ALTER TABLE watch_history ADD COLUMN totalViews INTEGER DEFAULT 0',
+        );
+        await db.execute('ALTER TABLE watch_history ADD COLUMN createdAt TEXT');
+        await db.execute('ALTER TABLE watch_history ADD COLUMN updatedAt TEXT');
+
+        // monthly_viewsテーブルを作成
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS monthly_views(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER,
+            historyId INTEGER,
+            monthYear TEXT,
+            viewCount INTEGER DEFAULT 0,
+            lastWatchedAt TEXT,
+            FOREIGN KEY (historyId) REFERENCES watch_history (id)
+          )
+        ''');
+
+        print('データベースをバージョン4に更新しました');
+      } catch (e) {
+        print('データベース更新エラー: $e');
+      }
     }
   }
 }

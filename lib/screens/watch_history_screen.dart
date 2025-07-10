@@ -62,7 +62,7 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
         return Icon(
           index < rating ? Icons.star : Icons.star_border,
           color: Colors.amber,
-          size: 16,
+          size: 14,
         );
       }),
     );
@@ -136,12 +136,15 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
         userId: history.userId,
         id: history.id,
         title: history.title,
-        views: history.views,
+        totalViews: history.totalViews,
         evaluation: newRating,
         url: history.url,
-        watchedAt: history.watchedAt,
-        monthYear: history.monthYear,
         channel: history.channel,
+        thumbnail: history.thumbnail,
+        createdAt: history.createdAt,
+        updatedAt: DateTime.now(),
+        monthlyViews: history.monthlyViews,
+        lastWatchedInMonth: history.lastWatchedInMonth,
       );
 
       // データベースを更新
@@ -169,6 +172,75 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
     }
   }
 
+  // サムネイルをフルサイズで表示する関数
+  void _showFullSizeThumbnail(WatchHistory history) {
+    if (history.thumbnail == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            Center(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                  maxHeight: MediaQuery.of(context).size.height * 0.7,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(history.thumbnail!, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Positioned(
+              bottom: 40,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      history.title,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      history.channel,
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,36 +255,159 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
                 final history = watchHistories[index];
                 return Card(
                   margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: Text(
-                      history.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('チャンネル: ${history.channel}'),
-                        Text('視聴回数: ${history.views}回'),
-                        if (history.watchedAt != null)
-                          Text('最終視聴: ${_formatDate(history.watchedAt!)}'),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildStarRating(history.evaluation),
-                        SizedBox(height: 4),
-                        GestureDetector(
-                          onTap: () => _showRatingDialog(history),
-                          child: Text(
-                            '評価変更',
-                            style: TextStyle(color: Colors.blue, fontSize: 12),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // サムネイル部分
+                          GestureDetector(
+                            onTap: () => _showFullSizeThumbnail(history),
+                            child: Container(
+                              width: 80,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.grey.shade200,
+                              ),
+                              child: history.thumbnail != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.memory(
+                                        history.thumbnail!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              print('サムネイル表示エラー: $error');
+                                              return Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.shade300,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  Icons.broken_image,
+                                                  color: Colors.grey.shade600,
+                                                  size: 30,
+                                                ),
+                                              );
+                                            },
+                                      ),
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.music_note,
+                                        color: Colors.grey.shade600,
+                                        size: 30,
+                                      ),
+                                    ),
+                            ),
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 12),
+                          // 中央のコンテンツ部分
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Text(
+                                  history.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'チャンネル: ${history.channel}',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade600,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '今月: ${history.monthlyViews ?? 0}回',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      '（総計: ${history.totalViews}回）',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    _buildStarRating(history.evaluation),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      '${history.evaluation}つ星',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (history.lastWatchedInMonth != null) ...[
+                                  SizedBox(height: 2),
+                                  Text(
+                                    '今月の最終視聴: ${_formatDate(history.lastWatchedInMonth!)}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          // 右側のボタン部分
+                          SizedBox(
+                            width: 60,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.edit, size: 18),
+                                  onPressed: () => _showRatingDialog(history),
+                                  tooltip: '評価変更',
+                                  padding: EdgeInsets.all(4),
+                                  constraints: BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                ),
+                                Text(
+                                  '評価変更',
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 9,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    isThreeLine: true,
                   ),
                 );
               },

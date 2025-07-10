@@ -1,7 +1,5 @@
 import 'dart:convert'; // JSON解析用
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../db/database_helper.dart';
-import '../db/jsons.dart';
 import '../utils/utils.dart';
 import '../db/watch_history.dart';
 import '../db/recommendation.dart';
@@ -16,19 +14,24 @@ Future<Recommendation> genRecommendBysongTitle(
 
     final apiKey = dotenv.env['API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      print('エラー: API_KEYが.envファイルに設定されていません');
+      ('エラー: API_KEYが.envファイルに設定されていません');
       throw Exception('API_KEY is not set in .env file');
     }
 
-    print('API_KEY読み込み成功: ${apiKey.substring(0, 10)}...');
+    ('API_KEY読み込み成功: ${apiKey.substring(0, 10)}...');
 
     final userId = await getOrCreateUserId();
     final title = watchHistory.title;
-    final monthYear = watchHistory.monthYear;
-    final views = watchHistory.views;
+    final totalViews = watchHistory.totalViews;
     final evaluation = watchHistory.evaluation;
+    final lastWatchedInMonth = watchHistory.lastWatchedInMonth;
 
-    print('AI推薦生成開始 - 曲: $title, 評価: $evaluation, 視聴回数: $views');
+    // 最新の視聴日から月年を計算
+    final monthYear = lastWatchedInMonth != null
+        ? WatchHistory.getMonthYear(lastWatchedInMonth)
+        : WatchHistory.getMonthYear(DateTime.now());
+
+    ('AI推薦生成開始 - 曲: $title, 評価: $evaluation, 総視聴回数: $totalViews');
 
     final model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
     final content = [
@@ -37,10 +40,8 @@ Future<Recommendation> genRecommendBysongTitle(
 
 入力情報:
 - 曲名: $title
-- 視聴回数: $views回
+- 総視聴回数: $totalViews回
 - 評価: $evaluation/5
-- 月: $monthYear
-- ユーザーID: $userId
 
 以下のJSON形式で出力してください:
 {
@@ -66,9 +67,9 @@ Future<Recommendation> genRecommendBysongTitle(
         throw Exception('AIからのレスポンスが空です');
       }
 
-      print('AI推薦生成成功: ${responseText.substring(0, 50)}...');
-      print(responseText);
-      print('=== AI完全応答 ===');
+      ('AI推薦生成成功: ${responseText.substring(0, 50)}...');
+      (responseText);
+      ('=== AI完全応答 ===');
 
       // AIレスポンスからRecommendationオブジェクトを作成
       return _parseAIResponse(
@@ -79,12 +80,12 @@ Future<Recommendation> genRecommendBysongTitle(
       );
     } catch (e) {
       // エラー時はデフォルトのRecommendationを返す
-      print('AI推薦生成エラー: $e');
+      ('AI推薦生成エラー: $e');
       return _createDefaultRecommendation(userId, watchHistory);
     }
   } catch (e) {
     // .env読み込みエラーなど、初期化エラーの場合
-    print('推薦システム初期化エラー: $e');
+    ('推薦システム初期化エラー: $e');
     final userId = await getOrCreateUserId();
     return _createDefaultRecommendation(userId, watchHistory);
   }
@@ -94,13 +95,13 @@ Future<Recommendation> genRecommendBysongTitle(
 String _generateYouTubeMusicSearchUrl(String title, String artist) {
   // 曲名とアーティスト名を組み合わせて検索クエリを作成
   final query = '$artist $title';
-  
+
   // 特殊文字や空白を適切にエンコード
   final encodedQuery = Uri.encodeQueryComponent(query);
-  
-  print('検索クエリ: $query');
-  print('エンコード後: $encodedQuery');
-  
+
+  ('検索クエリ: $query');
+  ('エンコード後: $encodedQuery');
+
   // YouTube Music検索URL
   return 'https://music.youtube.com/search?q=$encodedQuery';
 }
@@ -122,7 +123,7 @@ Recommendation _parseAIResponse(
     }
 
     final jsonString = responseText.substring(jsonStart, jsonEnd);
-    print('抽出されたJSON: $jsonString');
+    ('抽出されたJSON: $jsonString');
 
     final Map<String, dynamic> jsonData = json.decode(jsonString);
 
@@ -132,7 +133,7 @@ Recommendation _parseAIResponse(
     // 検索URLを生成
     final searchUrl = _generateYouTubeMusicSearchUrl(title, artist);
 
-    print('生成された検索URL: $searchUrl');
+    ('生成された検索URL: $searchUrl');
 
     return Recommendation(
       userId: userId,
@@ -145,7 +146,7 @@ Recommendation _parseAIResponse(
       watchedAt: DateTime.now(),
     );
   } catch (e) {
-    print('JSON解析エラー: $e');
+    ('JSON解析エラー: $e');
     throw Exception('AIレスポンスの解析に失敗しました: $e');
   }
 }
@@ -155,6 +156,11 @@ Recommendation _createDefaultRecommendation(
   int userId,
   WatchHistory watchHistory,
 ) {
+  final lastWatchedInMonth = watchHistory.lastWatchedInMonth;
+  final monthYear = lastWatchedInMonth != null
+      ? WatchHistory.getMonthYear(lastWatchedInMonth)
+      : WatchHistory.getMonthYear(DateTime.now());
+
   return Recommendation(
     userId: userId,
     parentId: watchHistory.id ?? 0,
@@ -162,7 +168,7 @@ Recommendation _createDefaultRecommendation(
     artist: '様々なアーティスト',
     description: 'あなたの音楽の好みに基づいたおすすめです',
     url: 'https://music.youtube.com/',
-    monthYear: watchHistory.monthYear,
+    monthYear: monthYear,
     watchedAt: DateTime.now(),
   );
 }
