@@ -338,7 +338,7 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      '今月: ${history.monthlyViews ?? 0}回',
+                                      '${widget.monthYear}月: ${history.monthlyViews ?? 0}回',
                                       style: TextStyle(fontSize: 11),
                                     ),
                                     SizedBox(width: 4),
@@ -368,7 +368,7 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
                                 if (history.lastWatchedInMonth != null) ...[
                                   SizedBox(height: 2),
                                   Text(
-                                    '今月の最終視聴: ${_formatDate(history.lastWatchedInMonth!)}',
+                                    '${widget.monthYear}の最終視聴: ${_formatDate(history.lastWatchedInMonth!)}',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey.shade600,
