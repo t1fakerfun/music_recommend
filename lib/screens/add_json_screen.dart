@@ -24,6 +24,14 @@ class MusicEntry {
     required this.channel,
     this.watchedAt,
   });
+  factory MusicEntry.fromJson(Map<String, dynamic> json) {
+    return MusicEntry(
+      title: json['title'] as String,
+      url: json['titleUrl'] as String,
+      channel: json['subtitles']?[0]?['name'] as String? ?? '不明',
+      watchedAt: DateTime.tryParse(json['time'] as String),
+    );
+  }
 }
 
 List<MusicEntry> extractMusicEntries(List<dynamic> jsonData) {
@@ -157,14 +165,42 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
 
   Future<void> _processJsonData(String contents) async {
     try {
+      final userId = await getOrCreateUserId();
+      final db = await DatabaseHelper().database;
+      final watchHistoryRepository = WatchHistoryRepository(db);
+      final latestWatchedDate = await watchHistoryRepository
+          .getLatestWatchedDate(userId);
+      final earliestWatchedDate = await watchHistoryRepository
+          .getEarliestWatchedDate(userId);
       final jsonData = jsonDecode(contents);
+      final newEntries = <MusicEntry>[];
+      for (final item in jsonData) {
+        if (item is Map<String, dynamic>) {
+          final entry = MusicEntry.fromJson(item);
+
+          // 🔥 null check を追加
+          if (entry.watchedAt != null) {
+            // データベースにデータがない場合（初回）は全て追加
+            if (latestWatchedDate == null || earliestWatchedDate == null) {
+              newEntries.add(entry);
+            } else {
+              // 最新日時より新しい OR 最古日時より古い場合に追加
+              if (entry.watchedAt!.isAfter(latestWatchedDate) ||
+                  entry.watchedAt!.isBefore(earliestWatchedDate)) {
+                newEntries.add(entry);
+              }
+            }
+          }
+        }
+      }
       if (jsonData is! List) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('無効なJSONファイルです')));
         return;
       }
-      final entries = extractMusicEntries(jsonData);
+
+      final entries = extractMusicEntries(newEntries);
 
       setState(() {
         _totalCount = entries.length;

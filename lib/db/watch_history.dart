@@ -504,4 +504,44 @@ class WatchHistoryRepository {
       return false;
     }
   }
+
+  Future<DateTime?> getLatestWatchedDate(int userId) async {
+    try {
+      final result = await database.query(
+        '''
+        SELECT MAX(lastWatchedAt) as latestWatched
+        FROM monthly_views
+        WHERE userId = ?
+      ''',
+        whereArgs: [userId],
+      );
+      if (result.isNotEmpty && result[0]['latestWatched'] != null) {
+        return DateTime.parse(result[0]['latestWatched'] as String);
+      }
+      return null;
+    } catch (e) {
+      ('Error getting latest watched date: $e');
+      return null;
+    }
+  }
+
+  Future<DateTime?> getEarliestWatchedDate(int userId) async {
+    try {
+      final result = await database.query(
+        '''
+        SELECT MIN(lastWatchedAt) as earliestWatched
+        FROM monthly_views
+        WHERE userId = ?
+      ''',
+        whereArgs: [userId],
+      );
+      if (result.isNotEmpty && result[0]['earliestWatched'] != null) {
+        return DateTime.parse(result[0]['earliestWatched'] as String);
+      }
+      return null;
+    } catch (e) {
+      ('Error getting earliest watched date: $e');
+      return null;
+    }
+  }
 }
