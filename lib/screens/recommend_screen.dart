@@ -337,10 +337,10 @@ class _RecommendScreenState extends State<RecommendScreen> {
                   service['icon'] as IconData,
                   color: service['color'] as Color,
                 ),
-                title: Text(service['name'] as String),
+                title: Text(service['name'].toString()),
                 onTap: () {
                   Navigator.pop(context);
-                  _launchURL(service['url'] as String);
+                  _launchURL(service['url'].toString());
                 },
               ),
             ),

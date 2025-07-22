@@ -41,7 +41,7 @@ class MonthlyViewsRepository {
       // 既存の月データがある場合は視聴回数を増加
       final currentCount = existing[0]['viewCount'] as int;
       final currentLastWatched = DateTime.parse(
-        existing[0]['lastWatchedAt'] as String,
+        existing[0]['lastWatchedAt'].toString(),
       );
 
       // より新しい視聴日時の場合のみ更新
@@ -59,7 +59,7 @@ class MonthlyViewsRepository {
         whereArgs: [userId, historyId, monthYear],
       );
 
-      print('月毎視聴回数更新: $monthYear - ${currentCount + 1}回');
+      //print('月毎視聴回数更新: $monthYear - ${currentCount + 1}回');
     } else {
       // 新しい月データを作成
       await database.insert('monthly_views', {
@@ -70,7 +70,7 @@ class MonthlyViewsRepository {
         'lastWatchedAt': watchedAt.toIso8601String(),
       });
 
-      print('月毎視聴回数新規作成: $monthYear - 1回');
+      //print('月毎視聴回数新規作成: $monthYear - 1回');
     }
   }
 
@@ -137,7 +137,7 @@ class MonthlyViewsRepository {
       orderBy: 'monthYear DESC',
     );
 
-    return maps.map((map) => map['monthYear'] as String).toList();
+    return maps.map((map) => map['monthYear'].toString()).toList();
   }
 
   // 月毎の統計情報を取得

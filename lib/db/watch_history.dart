@@ -138,7 +138,7 @@ class WatchHistoryRepository {
         final musicId = existingRecord['id'] as int;
         final existingTotalViews = (existingRecord['totalViews'] as int?) ?? 0;
 
-        print('既存楽曲を更新: ${watchHistory.title} (${watchedAt.toString()})');
+        //print('既存楽曲を更新: ${watchHistory.title} (${watchedAt.toString()})');
 
         // watch_historyテーブルの総視聴回数を更新
         await database.update(
@@ -161,12 +161,8 @@ class WatchHistoryRepository {
           monthYear,
           watchedAt,
         );
-
-        print('✅ 視聴記録追加完了（指定日時: ${watchedAt.toString()}）');
       } else {
         // 新しい楽曲の場合のみサムネイルをダウンロード
-        print('新しい楽曲を追加: ${watchHistory.title} (${watchedAt.toString()})');
-        print('サムネイルをダウンロード中...');
 
         final thumbnailData = await _downloadThumbnail(watchHistory.url);
 
@@ -190,11 +186,9 @@ class WatchHistoryRepository {
           monthYear,
           watchedAt,
         );
-
-        print('✅ 新しい楽曲追加完了（指定日時: ${watchedAt.toString()}）');
       }
     } catch (e) {
-      print('❌ insertOrUpdateWithDate エラー: $e');
+      //print('❌ insertOrUpdateWithDate エラー: $e');
       throw e;
     }
   }
@@ -219,7 +213,7 @@ class WatchHistoryRepository {
         final musicId = existingRecord['id'] as int;
         final existingTotalViews = (existingRecord['totalViews'] as int?) ?? 0;
 
-        print('既存楽曲を更新: ${watchHistory.title}');
+        //print('既存楽曲を更新: ${watchHistory.title}');
 
         // watch_historyテーブルの総視聴回数を更新
         await database.update(
@@ -243,11 +237,11 @@ class WatchHistoryRepository {
           watchDate,
         );
 
-        print('✅ 視聴記録追加完了（サムネイル再利用）');
+        //print('✅ 視聴記録追加完了（サムネイル再利用）');
       } else {
         // 新しい楽曲の場合のみサムネイルをダウンロード
-        print('新しい楽曲を追加: ${watchHistory.title}');
-        print('サムネイルをダウンロード中...');
+        //print('新しい楽曲を追加: ${watchHistory.title}');
+        //print('サムネイルをダウンロード中...');
 
         final thumbnailData = await _downloadThumbnail(watchHistory.url);
 
@@ -272,10 +266,10 @@ class WatchHistoryRepository {
           watchDate,
         );
 
-        print('✅ 新しい楽曲追加完了（サムネイル付き）');
+        //print('✅ 新しい楽曲追加完了（サムネイル付き）');
       }
     } catch (e) {
-      print('❌ insertOrUpdate エラー: $e');
+      //print('❌ insertOrUpdate エラー: $e');
       throw e;
     }
   }
@@ -291,11 +285,11 @@ class WatchHistoryRepository {
       final history = watchHistories[i];
 
       // プログレス表示
-      if ((i + 1) % 10 == 0 || i == watchHistories.length - 1) {
-        print(
-          '処理中: ${i + 1}/${watchHistories.length} (新規: $newCount, 更新: $updatedCount)',
-        );
-      }
+      // if ((i + 1) % 10 == 0 || i == watchHistories.length - 1) {
+      //   // print(
+      //   //   '処理中: ${i + 1}/${watchHistories.length} (新規: $newCount, 更新: $updatedCount)',
+      //   // );
+      // }
 
       try {
         // 単純にinsertOrUpdateを呼び出す
@@ -413,21 +407,21 @@ class WatchHistoryRepository {
           WatchHistory(
             userId: map['userId'] as int,
             id: map['id'] as int,
-            title: map['title'] as String,
+            title: map['title'].toString(),
             totalViews: (map['totalViews'] as int?) ?? 0,
             evaluation: map['evaluation'] as int,
-            url: map['url'] as String,
-            channel: (map['channel'] as String?) ?? '不明',
+            url: map['url'].toString(),
+            channel: (map['channel'].toString()) ?? '不明',
             thumbnail: map['thumbnail'] as Uint8List?,
             createdAt: map['createdAt'] != null
-                ? DateTime.parse(map['createdAt'] as String)
+                ? DateTime.parse(map['createdAt'].toString())
                 : null,
             updatedAt: map['updatedAt'] != null
-                ? DateTime.parse(map['updatedAt'] as String)
+                ? DateTime.parse(map['updatedAt'].toString())
                 : null,
             monthlyViews: monthlyInfo['viewCount'] as int,
             lastWatchedInMonth: monthlyInfo['lastWatchedAt'] != null
-                ? DateTime.parse(monthlyInfo['lastWatchedAt'] as String)
+                ? DateTime.parse(monthlyInfo['lastWatchedAt'].toString())
                 : null,
           ),
         );
@@ -456,7 +450,7 @@ class WatchHistoryRepository {
       groupBy: 'monthYear',
     );
 
-    final monthList = maps.map((map) => map['monthYear'] as String).toList();
+    final monthList = maps.map((map) => map['monthYear'].toString()).toList();
     monthList.sort((a, b) => b.compareTo(a)); // 降順ソート
     return monthList;
   }
@@ -507,16 +501,16 @@ class WatchHistoryRepository {
 
   Future<DateTime?> getLatestWatchedDate(int userId) async {
     try {
-      final result = await database.query(
+      final result = await database.rawQuery(
         '''
         SELECT MAX(lastWatchedAt) as latestWatched
         FROM monthly_views
-        WHERE userId = ?
-      ''',
-        whereArgs: [userId],
+          WHERE userId = ?
+        ''',
+        [userId],
       );
       if (result.isNotEmpty && result[0]['latestWatched'] != null) {
-        return DateTime.parse(result[0]['latestWatched'] as String);
+        return DateTime.parse(result[0]['latestWatched'].toString());
       }
       return null;
     } catch (e) {
@@ -527,16 +521,16 @@ class WatchHistoryRepository {
 
   Future<DateTime?> getEarliestWatchedDate(int userId) async {
     try {
-      final result = await database.query(
+      final result = await database.rawQuery(
         '''
         SELECT MIN(lastWatchedAt) as earliestWatched
         FROM monthly_views
         WHERE userId = ?
       ''',
-        whereArgs: [userId],
+        [userId],
       );
       if (result.isNotEmpty && result[0]['earliestWatched'] != null) {
-        return DateTime.parse(result[0]['earliestWatched'] as String);
+        return DateTime.parse(result[0]['earliestWatched'].toString());
       }
       return null;
     } catch (e) {

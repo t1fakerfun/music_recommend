@@ -26,33 +26,47 @@ class MusicEntry {
   });
   factory MusicEntry.fromJson(Map<String, dynamic> json) {
     return MusicEntry(
-      title: json['title'] as String,
-      url: json['titleUrl'] as String,
-      channel: json['subtitles']?[0]?['name'] as String? ?? '不明',
-      watchedAt: DateTime.tryParse(json['time'] as String),
+      title: (json['title'] ?? '').toString(),
+      url: (json['titleUrl'] ?? '').toString(),
+      channel: json['subtitles']?[0]?['name']?.toString() ?? '不明',
+      watchedAt: json['time'] != null
+          ? DateTime.tryParse(json['time'].toString())
+          : null,
     );
+  }
+  dynamic operator [](String key) {
+    switch (key) {
+      case 'header':
+        return 'YouTube Music';
+    }
   }
 }
 
 List<MusicEntry> extractMusicEntries(List<dynamic> jsonData) {
   return jsonData
       .where((entry) {
-        final header = entry['header'] ?? '';
-        final url = entry['titleUrl'] ?? '';
+        if (entry is! Map<String, dynamic>) return false;
+        final header = (entry['header'] ?? '').toString();
+        final url = (entry['titleUrl'] ?? '').toString();
         return header == "YouTube Music" || url.contains("music.youtube.com");
       })
       .map((entry) {
         // タイトルの文字化け修正
-        String title = (entry['title'] as String).replaceAll(" を視聴しました", "");
+        String title = (entry['title'] ?? '').toString().replaceAll(
+          " を視聴しました",
+          "",
+        );
         title = _fixGarbledText(title);
 
-        final url = entry['titleUrl'] ?? '';
+        final url = (entry['titleUrl'] ?? '').toString();
 
         // チャンネル名の文字化け修正
-        String channel = entry['subtitles']?[0]?['name'] ?? '不明';
+        String channel = entry['subtitles']?[0]?['name']?.toString() ?? '不明';
         channel = _fixGarbledText(channel);
 
-        final watchedAt = DateTime.parse(entry['time']);
+        final timeStr = entry['time']?.toString();
+        final watchedAt = timeStr != null ? DateTime.tryParse(timeStr) : null;
+
         return MusicEntry(
           title: title,
           url: url,
@@ -172,13 +186,38 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
           .getLatestWatchedDate(userId);
       final earliestWatchedDate = await watchHistoryRepository
           .getEarliestWatchedDate(userId);
+
+      print('データベース情報:');
+      print('- ユーザーID: $userId');
+      print('- 最新視聴日: $latestWatchedDate');
+      print('- 最古視聴日: $earliestWatchedDate');
+
       final jsonData = jsonDecode(contents);
+
+      // まずjsonDataがListかチェック
+      if (jsonData is! List) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('無効なJSONファイルです')));
+        return;
+      }
+
+      // まずYouTube Musicの生データをフィルタリング
+      final filteredJsonData = jsonData.where((item) {
+        if (item is! Map<String, dynamic>) return false;
+        final header = (item['header'] ?? '').toString();
+        final url = (item['titleUrl'] ?? '').toString();
+        return header == "YouTube Music" || url.contains("music.youtube.com");
+      }).toList();
+
       final newEntries = <MusicEntry>[];
-      for (final item in jsonData) {
+      print('フィルタリング前のYouTube Musicエントリ数: ${filteredJsonData.length}');
+
+      for (final item in filteredJsonData) {
         if (item is Map<String, dynamic>) {
           final entry = MusicEntry.fromJson(item);
 
-          // 🔥 null check を追加
+          // null check を追加
           if (entry.watchedAt != null) {
             // データベースにデータがない場合（初回）は全て追加
             if (latestWatchedDate == null || earliestWatchedDate == null) {
@@ -193,14 +232,11 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
           }
         }
       }
-      if (jsonData is! List) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('無効なJSONファイルです')));
-        return;
-      }
 
-      final entries = extractMusicEntries(newEntries);
+      print(
+        '処理対象エントリ数: ${newEntries.length}',
+      ); // extractMusicEntries は使わずに、既にフィルタリング済みの newEntries を使用
+      final entries = newEntries;
 
       setState(() {
         _totalCount = entries.length;
@@ -243,7 +279,7 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
   }
 
   Future<void> _processBatch(List<MusicEntry> entries) async {
-    const batchSize = 50; // 50件ずつ処理
+    const batchSize = 20; // メモリ不足対策：50件から20件に減らす
 
     for (int i = 0; i < entries.length; i += batchSize) {
       final batch = entries.skip(i).take(batchSize).toList();
@@ -263,7 +299,9 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
           // 新しいデータモデルでは、watchedDatesは不要
         );
 
-        print('処理中: ${entry.title} (サムネイルダウンロード含む)'); // デバッグ用
+        // print(
+        //   '処理中 (${_processedCount + 1}/${entries.length}): ${entry.title}',
+        // ); // デバッグ用
 
         // 実際の視聴日時を使用してデータを挿入
         final watchedDate = entry.watchedAt ?? DateTime.now();
@@ -277,14 +315,20 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
       // UI更新（進捗表示）
       setState(() {});
 
-      // UIスレッドを解放（重要！）
-      await Future.delayed(Duration(milliseconds: 10));
+      // UIスレッドを解放してメモリをクリア（重要！）
+      await Future.delayed(Duration(milliseconds: 50)); // 50msに増加
+
+      // ガベージコレクション促進のための処理
+      if (i % 100 == 0) {
+        // 100件処理毎により長い休憩
+        await Future.delayed(Duration(milliseconds: 200));
+      }
     }
 
     // 処理完了
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${entries.length}件の音楽を検出し、サムネイルもダウンロードしました'),
+        content: Text('${entries.length}件の音楽データを処理しました'),
         backgroundColor: Colors.green,
       ),
     );
@@ -325,7 +369,17 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
 
       // JSONエントリ数を取得
       final jsonData = jsonDecode(contents);
-      final entries = extractMusicEntries(jsonData);
+
+      // YouTube Musicエントリのみをカウント
+      int musicEntriesCount = 0;
+      if (jsonData is List) {
+        musicEntriesCount = jsonData.where((item) {
+          if (item is! Map<String, dynamic>) return false;
+          final header = (item['header'] ?? '').toString();
+          final url = (item['titleUrl'] ?? '').toString();
+          return header == "YouTube Music" || url.contains("music.youtube.com");
+        }).length;
+      }
 
       // jsonsテーブルに保存
       await jsonsRepository.insertJson(
@@ -333,13 +387,13 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
           userId: await getOrCreateUserId(),
           filename: file.name,
           filesize: fileSize,
-          entriesCount: entries.length,
+          entriesCount: musicEntriesCount,
           addDate: DateTime.now(),
         ),
       );
 
       print(
-        'JSONファイル情報を保存: ${file.name}, サイズ: $fileSize, エントリ数: ${entries.length}',
+        'JSONファイル情報を保存: ${file.name}, サイズ: $fileSize, エントリ数: $musicEntriesCount',
       );
     } catch (e) {
       print('JSONファイル情報の保存に失敗: $e');
@@ -393,7 +447,7 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
                         children: [
                           Text('処理中: $_processedCount / $_totalCount'),
                           Text(
-                            'サムネイルダウンロード中...',
+                            'データ処理中...',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.blue,
@@ -415,7 +469,7 @@ class _AddJsonScreenState extends State<AddJsonScreen> {
                           Text('ファイルを処理中...'),
                           SizedBox(height: 4),
                           Text(
-                            'サムネイルをダウンロードしています',
+                            'データを解析しています',
                             style: TextStyle(fontSize: 12, color: Colors.blue),
                           ),
                         ],
