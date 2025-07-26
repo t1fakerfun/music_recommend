@@ -145,4 +145,13 @@ MIT
 - Flutter / Dart
 - Gemini API (LLM-based recommendation)
 - JSON構造の理解には [cachu_donさんの記事](https://note.com/cachu_don/n/n976502e18345) を参考
-  
+
+## デモ
+
+### ホーム画面
+
+![ホーム画面](music_home.png)
+
+### 推薦結果画面
+
+![推薦結果画面](music_result.jpeg)
