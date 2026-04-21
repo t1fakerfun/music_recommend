@@ -33,7 +33,9 @@ Future<Recommendation> genRecommendBysongTitle(
 
     ('AI推薦生成開始 - 曲: $title, 評価: $evaluation, 総視聴回数: $totalViews');
 
-    final model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
+    String modelName = 'gemini-2.5-flash';
+    GenerativeModel model = GenerativeModel(model: modelName, apiKey: apiKey);
+    
     final content = [
       Content.text('''
 あなたは音楽レコメンドエンジンです。以下の情報に基づいて、類似したおすすめの曲を1曲提案してください。
@@ -60,7 +62,18 @@ Future<Recommendation> genRecommendBysongTitle(
     ];
 
     try {
-      final response = await model.generateContent(content);
+      GenerateContentResponse response;
+      try {
+        ('モデル $modelName で生成中...');
+        response = await model.generateContent(content);
+      } catch (e) {
+        ('モデル $modelName でのエラー: $e');
+        modelName = 'gemini-flash-latest';
+        ('フォールバックモデル $modelName で再試行中...');
+        model = GenerativeModel(model: modelName, apiKey: apiKey);
+        response = await model.generateContent(content);
+      }
+
       final responseText = response.text;
 
       if (responseText == null) {
