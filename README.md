@@ -152,6 +152,10 @@ MIT
 
 ![ホーム画面](music_home.png)
 
-### 推薦結果画面
+### 視聴履歴画面
 
-![推薦結果画面](music_result.jpeg)
+![視聴履歴画面](music_result.jpeg)
+
+### AI推薦画面
+
+![AI推薦画面](music_recommend.webp)
