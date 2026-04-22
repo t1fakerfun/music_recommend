@@ -350,19 +350,19 @@ class WatchHistoryRepository {
 
     return List.generate(maps.length, (i) {
       return WatchHistory(
-        userId: maps[i]['userId'],
-        id: maps[i]['id'],
-        title: maps[i]['title'],
-        totalViews: maps[i]['totalViews'] ?? 0,
-        evaluation: maps[i]['evaluation'],
-        url: maps[i]['url'],
-        channel: maps[i]['channel'] ?? '不明',
+        userId: maps[i]['userId'] as int,
+        id: maps[i]['id'] as int?,
+        title: maps[i]['title'].toString(),
+        totalViews: (maps[i]['totalViews'] as int?) ?? 0,
+        evaluation: (maps[i]['evaluation'] as int?) ?? 0,
+        url: maps[i]['url'].toString(),
+        channel: maps[i]['channel']?.toString() ?? '不明',
         thumbnail: maps[i]['thumbnail'] as Uint8List?,
         createdAt: maps[i]['createdAt'] != null
-            ? DateTime.parse(maps[i]['createdAt'])
+            ? DateTime.parse(maps[i]['createdAt'].toString())
             : null,
         updatedAt: maps[i]['updatedAt'] != null
-            ? DateTime.parse(maps[i]['updatedAt'])
+            ? DateTime.parse(maps[i]['updatedAt'].toString())
             : null,
       );
     });
@@ -373,71 +373,53 @@ class WatchHistoryRepository {
     int userId,
     String monthYear,
   ) async {
-    // watch_historyテーブルから基本情報を取得
-    final watchHistoryMaps = await database.query(
-      'watch_history',
-      where: 'userId = ?',
-      whereArgs: [userId],
-    );
-
-    // monthly_viewsテーブルから月毎の視聴情報を取得
-    final monthlyViewsMaps = await database.rawQuery(
+    // INNER JOINを使用して、対象月のデータのみをデータベースレベルで取得・ソートする
+    final List<Map<String, dynamic>> maps = await database.rawQuery(
       '''
-      SELECT mv.historyId, mv.viewCount, mv.lastWatchedAt
-      FROM monthly_views mv
+      SELECT 
+        wh.id,
+        wh.userId,
+        wh.title,
+        wh.channel,
+        wh.url,
+        wh.evaluation,
+        wh.totalViews,
+        wh.thumbnail,
+        wh.createdAt,
+        wh.updatedAt,
+        mv.viewCount as monthlyViews,
+        mv.lastWatchedAt as lastWatchedInMonth
+      FROM watch_history wh
+      INNER JOIN monthly_views mv ON wh.id = mv.historyId
       WHERE mv.userId = ? AND mv.monthYear = ?
+      ORDER BY mv.viewCount DESC, wh.evaluation DESC
     ''',
       [userId, monthYear],
     );
 
-    // historyIdをキーとするマップを作成
-    final monthlyViewsMap = <int, Map<String, dynamic>>{};
-    for (final mv in monthlyViewsMaps) {
-      monthlyViewsMap[mv['historyId'] as int] = mv;
-    }
-
-    // 月毎の視聴がある楽曲のみをフィルタリング
-    List<WatchHistory> filteredHistories = [];
-    for (final map in watchHistoryMaps) {
-      final historyId = map['id'] as int;
-      final monthlyInfo = monthlyViewsMap[historyId];
-
-      if (monthlyInfo != null) {
-        filteredHistories.add(
-          WatchHistory(
-            userId: map['userId'] as int,
-            id: map['id'] as int,
-            title: map['title'].toString(),
-            totalViews: (map['totalViews'] as int?) ?? 0,
-            evaluation: map['evaluation'] as int,
-            url: map['url'].toString(),
-            channel: (map['channel'].toString()) ?? '不明',
-            thumbnail: map['thumbnail'] as Uint8List?,
-            createdAt: map['createdAt'] != null
-                ? DateTime.parse(map['createdAt'].toString())
-                : null,
-            updatedAt: map['updatedAt'] != null
-                ? DateTime.parse(map['updatedAt'].toString())
-                : null,
-            monthlyViews: monthlyInfo['viewCount'] as int,
-            lastWatchedInMonth: monthlyInfo['lastWatchedAt'] != null
-                ? DateTime.parse(monthlyInfo['lastWatchedAt'].toString())
-                : null,
-          ),
-        );
-      }
-    }
-
-    // 月毎視聴回数と評価順でソート
-    filteredHistories.sort((a, b) {
-      final viewsComparison = (b.monthlyViews ?? 0).compareTo(
-        a.monthlyViews ?? 0,
+    return List.generate(maps.length, (i) {
+      final map = maps[i];
+      return WatchHistory(
+        userId: map['userId'] as int,
+        id: map['id'] as int,
+        title: map['title'].toString(),
+        totalViews: (map['totalViews'] as int?) ?? 0,
+        evaluation: (map['evaluation'] as int?) ?? 0,
+        url: map['url'].toString(),
+        channel: map['channel']?.toString() ?? '不明',
+        thumbnail: map['thumbnail'] as Uint8List?,
+        createdAt: map['createdAt'] != null
+            ? DateTime.parse(map['createdAt'].toString())
+            : null,
+        updatedAt: map['updatedAt'] != null
+            ? DateTime.parse(map['updatedAt'].toString())
+            : null,
+        monthlyViews: map['monthlyViews'] as int?,
+        lastWatchedInMonth: map['lastWatchedInMonth'] != null
+            ? DateTime.parse(map['lastWatchedInMonth'].toString())
+            : null,
       );
-      if (viewsComparison != 0) return viewsComparison;
-      return b.evaluation.compareTo(a.evaluation);
     });
-
-    return filteredHistories;
   }
 
   // 利用可能な月年のリストを取得する（新しいmonthly_viewsテーブルを使用）

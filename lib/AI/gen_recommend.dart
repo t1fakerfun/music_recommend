@@ -35,7 +35,7 @@ Future<Recommendation> genRecommendBysongTitle(
 
     String modelName = 'gemini-2.5-flash';
     GenerativeModel model = GenerativeModel(model: modelName, apiKey: apiKey);
-    
+
     final content = [
       Content.text('''
 あなたは音楽レコメンドエンジンです。以下の情報に基づいて、類似したおすすめの曲を1曲提案してください。
